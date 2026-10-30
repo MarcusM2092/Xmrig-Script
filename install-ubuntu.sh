@@ -4,9 +4,9 @@ set -euo pipefail
 echo "Installing dependencies..."
 if command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update -y
-    sudo apt-get install -y curl jq tar
+    sudo apt-get install -y curl jq tar build-essential cmake libuv1-dev libssl-dev libhwloc-dev
 elif command -v dnf >/dev/null 2>&1; then
-    sudo dnf install -y curl jq tar
+    sudo dnf install -y curl jq tar gcc-c++ cmake libuv-devel openssl-devel hwloc-devel
 else
     echo "Unsupported package manager."
     exit 1
@@ -16,32 +16,18 @@ echo "Setting up mining directory..."
 sudo mkdir -p /root/moneroocean
 cd /root/moneroocean
 
-# Detect CPU architecture
-ARCH=$(uname -m)
-case "$ARCH" in
-    aarch64|arm64)
-        echo "Detected ARM64 architecture"
-        ;;
-    armv7l)
-        echo "Detected ARMv7 architecture"
-        ;;
-    x86_64)
-        echo "Detected x86_64 architecture"
-        ;;
-    *)
-        echo "Unsupported architecture: $ARCH"
-        exit 1
-        ;;
-esac
+# Clone and compile XMRig from source
+echo "Cloning XMRig repository..."
+git clone https://github.com/xmrig/xmrig.git
+cd xmrig
 
-# Download the correct ARM64 binary directly
-echo "Downloading ARM64 XMRig..."
-curl -fL -o xmrig.tar.gz "https://github.com/MoneroOcean/xmrig/releases/download/6.22.2/xmrig-arm64.tar.gz"
+echo "Configuring and building XMRig..."
+./configure --with-crypto=hw
+make -j$(nproc)
 
-# Extract and move binary
-tar -xf xmrig.tar.gz
-mv xmrig /root/moneroocean/xmrig
-rm -rf xmrig.tar.gz
+# Copy the compiled binary to the mining directory
+sudo cp xmrig /root/moneroocean/
+sudo chmod +x /root/moneroocean/xmrig
 
 # Create config
 cat > /root/moneroocean/config.json <<EOF
@@ -49,8 +35,8 @@ cat > /root/moneroocean/config.json <<EOF
     "autosave": true,
     "cpu": {
         "enabled": true,
-        "huge-pages": true,
-        "huge-pages-jit": true,
+        "huge-pages": false,
+        "huge-pages-jit": false,
         "asm": true
     },
     "pools": [
