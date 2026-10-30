@@ -16,17 +16,17 @@ echo "Setting up mining directory..."
 sudo mkdir -p /root/moneroocean
 cd /root/moneroocean
 
-# Detect CPU architecture to download the correct binary
+# Detect CPU architecture
 ARCH=$(uname -m)
 case "$ARCH" in
     aarch64|arm64)
-        ASSET_REGEX='(arm64|aarch64).*\.tar\.gz$'
+        echo "Detected ARM64 architecture"
         ;;
     armv7l)
-        ASSET_REGEX='(arm|armv7).*\.tar\.gz$'
+        echo "Detected ARMv7 architecture"
         ;;
     x86_64)
-        ASSET_REGEX='(lin-x64|lin-compat).*\.tar\.gz$'
+        echo "Detected x86_64 architecture"
         ;;
     *)
         echo "Unsupported architecture: $ARCH"
@@ -34,29 +34,14 @@ case "$ARCH" in
         ;;
 esac
 
-echo "Detected architecture: $ARCH"
+# Download the correct ARM64 binary directly
+echo "Downloading ARM64 XMRig..."
+curl -fL -o xmrig.tar.gz "https://github.com/MoneroOcean/xmrig/releases/download/6.22.2/xmrig-arm64.tar.gz"
 
-download_release() {
-  local url
-  url=$(curl -fsSL "https://api.github.com/repos/$1/releases/latest" |
-    jq -er --arg asset "$2" --arg prefix "https://github.com/$1/releases/download/" '
-      .assets | if type == "array" then . else error("Expected release assets") end
-      | map(select(type == "object") | select(.name | type == "string")
-        | select(.name | test($asset; "i")) | .browser_download_url
-        | select(type == "string")
-        | select(startswith($prefix) and test("^https://[-A-Za-z0-9._~:/%+]+$")))
-      | first') || { echo "No matching release asset for pattern $2" >&2; exit 1; }
-  curl -fL -o "$3" -- "$url"
-}
-
-echo "Downloading XMRig..."
-download_release MoneroOcean/xmrig "$ASSET_REGEX" xmrig.tar.gz
-
-# Extract and move xmrig binary to /root/moneroocean/xmrig
+# Extract and move binary
 tar -xf xmrig.tar.gz
-find . -name "xmrig" -type f -exec mv {} /root/moneroocean/ \;
-rm -rf xmrig.tar.gz xmrig-*
-chmod +x /root/moneroocean/xmrig
+mv xmrig /root/moneroocean/xmrig
+rm -rf xmrig.tar.gz
 
 # Create config
 cat > /root/moneroocean/config.json <<EOF
@@ -80,7 +65,7 @@ cat > /root/moneroocean/config.json <<EOF
 }
 EOF
 
-# Create systemd service file
+# Create systemd service
 cat > /etc/systemd/system/moneroocean.service <<EOF
 [Unit]
 Description=MoneroOcean Miner
@@ -104,5 +89,5 @@ sudo systemctl daemon-reload
 sudo systemctl enable moneroocean
 sudo systemctl restart moneroocean
 
-echo "MoneroOcean miner installed and running as systemd service."
+echo "MoneroOcean miner installed and running."
 echo "Check status: systemctl status moneroocean"
