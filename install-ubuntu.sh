@@ -1,5 +1,12 @@
-sudo apt-get install curl jq
+#!/bin/bash
+set -euo pipefail
+
+# Install dependencies
+sudo apt-get install -y curl jq tar msr-tools
+
+# Create directory and download release
 mkdir -p ~/moneroocean && cd ~/moneroocean
+
 download_release() {
   local url
   url=$(set -o pipefail
@@ -13,6 +20,61 @@ download_release() {
         | first') || { echo 'No matching release asset' >&2; exit 1; }
   curl -fL -o "$3" -- "$url"
 }
-download_release MoneroOcean/xmrig 'lin-compat\.tar\.gz$' xmrig.tar.gz && tar xf xmrig.tar.gz && chmod +x xmrig
 
-./xmrig --config=./config.json -o gulf.moneroocean.stream:20004 -u 42qdWYwdo8GXVJaQF6WNtCCvRCgZmB4Kc3BYbait61jVbCo9vDooqvEEUhHnMxf1bzJrVwGQB5jT5CzF8AvcDu6i8qrHBZv --rig-id Donation --keepalive --tls
+# Download and extract
+download_release MoneroOcean/xmrig 'lin-compat\.tar\.gz$' xmrig.tar.gz
+tar xf xmrig.tar.gz
+chmod +x xmrig
+
+# Create optimized config
+cat > config.json <<EOF
+{
+    "autosave": true,
+    "cpu": {
+        "enabled": true,
+        "huge-pages": true,
+        "huge-pages-jit": true,
+        "asm": true,
+        "priority": 5
+    },
+    "pools": [
+        {
+            "url": "gulf.moneroocean.stream:10128",
+            "user": "42qdWYwdo8GXVJaQF6WNtCCvRCgZmB4Kc3BYbait61jVbCo9vDooqvEEUhHnMxf1bzJrVwGQB5jT5CzF8AvcDu6i8qrHBZv",
+            "pass": "Donation",
+            "keepalive": true,
+            "tls": false
+        }
+    ]
+}
+EOF
+
+# Create systemd service file
+cat > ~/moneroocean.service <<EOF
+[Unit]
+Description=MoneroOcean Miner
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/ubuntu/moneroocean
+ExecStart=/home/ubuntu/moneroocean/xmrig -c /home/ubuntu/moneroocean/config.json
+Restart=always
+RestartSec=10
+Nice=10
+CPUQuota=90%
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Install and enable service
+sudo mv ~/moneroocean.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable moneroocean
+sudo systemctl start moneroocean
+
+echo "MoneroOcean miner installed and running as systemd service"
+echo "Check status with: systemctl status moneroocean"
+echo "View logs with: journalctl -u moneroocean -f"
