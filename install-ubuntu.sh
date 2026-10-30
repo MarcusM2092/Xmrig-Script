@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Install dependencies
-sudo apt-get install -y curl jq tar msr-tools
+sudo apt-get install -y curl jq tar
+sudo apt-get install -y msr-tools || echo "msr-tools not available on this architecture, skipping."
 
 # Create directory and download release
 sudo mkdir -p /root/moneroocean && cd /root/moneroocean
