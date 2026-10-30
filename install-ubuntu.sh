@@ -5,7 +5,7 @@ set -euo pipefail
 sudo apt-get install -y curl jq tar msr-tools
 
 # Create directory and download release
-mkdir -p ~/moneroocean && cd ~/moneroocean
+sudo mkdir -p /root/moneroocean && cd /root/moneroocean
 
 download_release() {
   local url
@@ -50,7 +50,7 @@ cat > config.json <<EOF
 EOF
 
 # Create systemd service file
-cat > ~/moneroocean.service <<EOF
+cat > /tmp/moneroocean.service <<EOF
 [Unit]
 Description=MoneroOcean Miner
 After=network.target
@@ -58,8 +58,8 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/home/ubuntu/moneroocean
-ExecStart=/home/ubuntu/moneroocean/xmrig -c /home/ubuntu/moneroocean/config.json
+WorkingDirectory=/root/moneroocean
+ExecStart=/root/moneroocean/xmrig -c /root/moneroocean/config.json
 Restart=always
 RestartSec=10
 Nice=10
@@ -70,10 +70,10 @@ WantedBy=multi-user.target
 EOF
 
 # Install and enable service
-sudo mv ~/moneroocean.service /etc/systemd/system/
+sudo mv /tmp/moneroocean.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable moneroocean
-sudo systemctl start moneroocean
+sudo systemctl restart moneroocean
 
 echo "MoneroOcean miner installed and running as systemd service"
 echo "Check status with: systemctl status moneroocean"
