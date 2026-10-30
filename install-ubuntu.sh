@@ -2,27 +2,38 @@
 set -euo pipefail
 
 # Install dependencies
-sudo apt-get install -y curl jq tar
-sudo apt-get install -y msr-tools || echo "msr-tools not available on this architecture, skipping."
+echo "Installing dependencies..."
+if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update -y
+    sudo apt-get install -y curl jq tar
+    # msr-tools is not needed on ARM, so we skip it
+elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y curl jq tar
+    # msr-tools is not needed on ARM, so we skip it
+else
+    echo "Unsupported package manager. Please install curl, jq, and tar manually."
+    exit 1
+fi
 
 # Create directory and download release
-sudo mkdir -p /root/moneroocean && cd /root/moneroocean
+echo "Setting up mining directory..."
+sudo mkdir -p /root/moneroocean
+cd /root/moneroocean
 
 download_release() {
   local url
-  url=$(set -o pipefail
-    curl -fsSL "https://api.github.com/repos/$1/releases/latest" |
-      jq -er --arg asset "$2" --arg prefix "https://github.com/$1/releases/download/" '
-        .assets | if type == "array" then . else error("Expected release assets") end
-        | map(select(type == "object") | select(.name | type == "string")
-          | select(.name | test($asset; "i")) | .browser_download_url
-          | select(type == "string")
-          | select(startswith($prefix) and test("^https://[-A-Za-z0-9._~:/%+]+$")))
-        | first') || { echo 'No matching release asset' >&2; exit 1; }
+  url=$(curl -fsSL "https://api.github.com/repos/$1/releases/latest" |
+    jq -er --arg asset "$2" --arg prefix "https://github.com/$1/releases/download/" '
+      .assets | if type == "array" then . else error("Expected release assets") end
+      | map(select(type == "object") | select(.name | type == "string")
+        | select(.name | test($asset; "i")) | .browser_download_url
+        | select(type == "string")
+        | select(startswith($prefix) and test("^https://[-A-Za-z0-9._~:/%+]+$")))
+      | first') || { echo 'No matching release asset' >&2; exit 1; }
   curl -fL -o "$3" -- "$url"
 }
 
-# Download and extract
+echo "Downloading XMRig..."
 download_release MoneroOcean/xmrig 'lin-compat\.tar\.gz$' xmrig.tar.gz
 tar xf xmrig.tar.gz
 chmod +x xmrig
@@ -35,8 +46,7 @@ cat > config.json <<EOF
         "enabled": true,
         "huge-pages": true,
         "huge-pages-jit": true,
-        "asm": true,
-        "priority": 5
+        "asm": true
     },
     "pools": [
         {
@@ -71,10 +81,11 @@ WantedBy=multi-user.target
 EOF
 
 # Install and enable service
+echo "Setting up systemd service..."
 sudo mv /tmp/moneroocean.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable moneroocean
-sudo systemctl restart moneroocean
+sudo systemctl start moneroocean
 
 echo "MoneroOcean miner installed and running as systemd service"
 echo "Check status with: systemctl status moneroocean"
