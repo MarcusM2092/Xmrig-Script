@@ -16,6 +16,11 @@ echo "Setting up mining directory..."
 sudo mkdir -p /root/moneroocean
 cd /root/moneroocean
 
+# Add this before 'git clone' in your script
+if [ -d "/root/moneroocean/xmrig" ]; then
+    sudo rm -rf /root/moneroocean/xmrig
+fi
+
 # Clone and compile XMRig from source
 echo "Cloning XMRig repository..."
 git clone https://github.com/xmrig/xmrig.git
