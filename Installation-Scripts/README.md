@@ -1,3 +1,5 @@
+# Install-Ubuntu
+
 The script starts by detecting the system package manager to install required build tools and libraries like cmake, gcc, and openssl.
 It then creates a working directory at /root/moneroocean and clones the official XMRig source code repository there.
 Next, it compiles XMRig from source with hardware support enabled and moves the compiled binary into the working directory.
