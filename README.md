@@ -1,5 +1,12 @@
 # Xmrig-Script
-A script that runs xmrig and mines crypto from a single command.
+A few scripts relating to xmrig that i use.
+Feel free to use them but dont expect me to debug anything.
 
-You can run this to execute it:
+You can run the scripts like this:
+
+curl -sSL https://raw.githubusercontent.com/MarcusM2092/Xmrig-Script/main/<SCRIPT_NAME> | bash
+
+
+Heres an example:
+
 curl -sSL https://raw.githubusercontent.com/MarcusM2092/Xmrig-Script/main/install-ubuntu.sh | bash
